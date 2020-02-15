@@ -12,8 +12,12 @@ Progetto.ko
 
 Progetto.mod.c
 
+Progetto.mod.o
+
+Progetto.o
+
 modules.order
 
-./user/user
+user/user
 
-./user/user_read.o
+user/user_read.o
