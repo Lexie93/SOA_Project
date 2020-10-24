@@ -1,20 +1,10 @@
-.tmp_versions
+*.ko
 
-.Progetto.ko.cmd
+*.mod.*
 
-.Progetto.mod.o.cmd
-
-.Progetto.o.cmd
+*.o
 
 Module.symvers
-
-Progetto.ko
-
-Progetto.mod.c
-
-Progetto.mod.o
-
-Progetto.o
 
 modules.order
 
