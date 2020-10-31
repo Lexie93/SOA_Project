@@ -1,7 +1,3 @@
-#include <linux/module.h>
-#include <linux/init.h>
-#include <linux/fs.h>
-#include <linux/sysfs.h>
 #include <linux/kobject.h>
 
 #include "expose_sys.h"
@@ -38,6 +34,7 @@ static ssize_t store_value(struct kobject *kobj, struct kobj_attribute *attribut
 		sscanf(buf, "%du", &max_message_size[minor]);
 	else
 		sscanf(buf, "%du", &max_storage_size[minor]);
+
 	return count;
 }
 
@@ -70,7 +67,7 @@ int init_sys(void){
 
 		error = sysfs_create_file(device_kobject[i], &max_message_attribute[i].attr);
     	if (error) {
-    		printk("failed to create max_message_size file in /sys/kernel/%s/%d\n", MODNAME, i);
+    		printk(KERN_ERR "failed to create max_message_size file in /sys/kernel/%s/%d\n", MODNAME, i);
     		goto put_kbjects;
     	}
 
@@ -83,16 +80,20 @@ int init_sys(void){
 
     	error = sysfs_create_file(device_kobject[i], &max_storage_attribute[i].attr);
     	if (error) {
-    		printk("failed to create max_storage_size file in /sys/kernel/%s/%d\n", MODNAME, i);
+    		printk(KERN_ERR "failed to create max_storage_size file in /sys/kernel/%s/%d\n", MODNAME, i);
     		goto put_kbjects;
     	}
 	}
+
 	return 0;
+	
 
 	put_kbjects:
+
 	for(; i>=0; i--)
 		kobject_put(device_kobject[i]);
 	kobject_put(device);
+
 	return error;
 }
 

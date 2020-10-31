@@ -11,3 +11,7 @@ modules.order
 user/user
 
 user/user_read.o
+
+*.cmd
+
+.tmp_versions

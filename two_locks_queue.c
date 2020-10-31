@@ -1,73 +1,73 @@
-#include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/slab.h>
 
-struct node_t{
-	int value;
-	struct node_t *next;
-};
+#include "two_locks_queue.h"
 
-struct queue_t{
-	struct node_t *Head;
-	struct node_t *Tail;
-	struct mutex H_lock;
-	struct mutex T_lock;
-};
+int initialize_queue(queue *q){
 
-int initialize_queue(struct queue_t *Q){
-
-	struct node_t *node=kmalloc(sizeof(struct node_t), GFP_ATOMIC);
+	//creating dummy node
+	message *node=kmalloc(sizeof(message), GFP_KERNEL);
 	if (!node)
 		return -ENOMEM;
 
 	node->next=NULL;
-	Q->Head=node;
-	Q->Tail=node;
-	mutex_init(&Q->H_lock);
-	mutex_init(&Q->T_lock);
+	q->head=node;
+	q->tail=node;
+	spin_lock_init(&q->h_lock);
+	spin_lock_init(&q->t_lock);
 
 	return 0;
 }
 
-//called only when queue is empty to remove dummy node
-void remove_queue(struct queue_t *Q){
-	kfree(Q->Head);
+void remove_queue(queue *q){
+
+	message *tmp;
+
+	//dummy node removal
+	tmp=q->head;
+	q->head=q->head->next;
+	kfree(tmp);
+
+	while(q->head){
+		tmp=q->head;
+		q->head=q->head->next;
+		kfree(tmp->content);
+		kfree(tmp);
+	}
 }
 
-int enqueue(struct queue_t *Q, int value){
+void enqueue(queue *q, message *node){
 
-	struct node_t *node=kmalloc(sizeof(struct node_t), GFP_ATOMIC);
-	if (!node)
-		return -ENOMEM;
-
-	node->value=value;
 	node->next=NULL;
 
-	mutex_lock(&Q->T_lock);
-	Q->Tail->next=node;
-	Q->Tail=node;
-	mutex_unlock(&Q->T_lock);
+	spin_lock(&q->t_lock);
+	q->tail->next=node;
+	q->tail=node;
+	spin_unlock(&q->t_lock);
 
-	return 0;
+	printk(KERN_DEBUG "enqueue: %.10s\n", q->tail->content);
 }
 
-int dequeue(struct queue_t *Q, int *pvalue){
+//do not modify or free a node after dequeue, it's still used as dummy!
+int dequeue(queue *q, message *node){
 
-	struct node_t *new_head;
-	struct node_t *node;
+	message *new_head;
+	message *dummy;
 
-	mutex_lock(&Q->H_lock);
-	node=Q->Head;
-	new_head=node->next;
+	spin_lock(&q->h_lock);
+	dummy=q->head;
+	new_head=dummy->next;
 	if (new_head==NULL){
-		mutex_unlock(&Q->T_lock);
+		spin_unlock(&q->h_lock);
 		return -ENODATA;
 	}
-	*pvalue=new_head->value;
-	Q->Head=new_head;
-	mutex_unlock(&Q->H_lock);
+	*node=*new_head;
 
-	kfree(node);
+	printk(KERN_DEBUG "dequeue: %.10s\n", node->content);
+
+	q->head=new_head;
+	spin_unlock(&q->h_lock);
+
+	kfree(dummy);
 
 	return 0;
 }
