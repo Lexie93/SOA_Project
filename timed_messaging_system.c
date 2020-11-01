@@ -57,36 +57,36 @@ typedef struct _delayed_message{
 
 static int dev_open(struct inode *inode, struct file *filp) {
 
-   int minor;
-   session_data *sess;
-   object_state *the_object;
-   minor = get_minor(filp);
-   the_object = objects + minor;
+	int minor;
+	session_data *sess;
+	object_state *the_object;
+	minor = get_minor(filp);
+	the_object = objects + minor;
 
-   if(minor >= MINORS){
-	return -ENODEV;
-   }
+	if(minor >= MINORS){
+		return -ENODEV;
+	}
 
-   sess = kmalloc(sizeof(session_data), GFP_KERNEL);
-   if (!sess){
-   	return -ENOMEM;
-   }
+	sess = kmalloc(sizeof(session_data), GFP_KERNEL);
+	if (!sess){
+		return -ENOMEM;
+	}
 
-   sess->send_delay=0;
-   sess->receive_timeout=0;
-   sess->minor= minor;
-   spin_lock_init(&sess->delayed_message_synchronizer);
-   INIT_LIST_HEAD(&sess->delayed_mess);
+	sess->send_delay=0;
+	sess->receive_timeout=0;
+	sess->minor= minor;
+	spin_lock_init(&sess->delayed_message_synchronizer);
+	INIT_LIST_HEAD(&sess->delayed_mess);
 
-   spin_lock(&the_object->list_sess_synchronizer);
-   list_add(&sess->list, &the_object->sess_list);
-   spin_unlock(&the_object->list_sess_synchronizer);
+	spin_lock(&the_object->list_sess_synchronizer);
+	list_add(&sess->list, &the_object->sess_list);
+	spin_unlock(&the_object->list_sess_synchronizer);
 
-   filp->private_data=sess;
+	filp->private_data=sess;
 
-   printk(KERN_INFO "%s: device file successfully opened for object with minor %d\n",MODNAME,minor);
+	printk(KERN_INFO "%s: device file successfully opened for object with minor %d\n",MODNAME,minor);
 
-   return 0;
+	return 0;
 }
 
 
@@ -96,9 +96,9 @@ static int dev_release(struct inode *inode, struct file *filp) {
 	session_data *sess = (session_data *) filp->private_data;
 	object_state *the_object = objects + minor;
 
-   	spin_lock(&the_object->list_sess_synchronizer);
-   	list_del(&sess->list);
-   	spin_unlock(&the_object->list_sess_synchronizer);
+	spin_lock(&the_object->list_sess_synchronizer);
+	list_del(&sess->list);
+	spin_unlock(&the_object->list_sess_synchronizer);
 
 	kfree(sess);
 
@@ -167,7 +167,7 @@ static ssize_t dev_read_exclusive (struct file *filp, char *buf, size_t count, l
 	mutex_unlock(&(the_object->list_msg_synchronizer));
 
 	atomic_dec(active_readers);
-    return read_size;
+	return read_size;
 }
 */
 
@@ -190,18 +190,19 @@ static ssize_t dev_read_ordered (struct file *filp, char *buf, size_t count, lof
 	if (sess->receive_timeout>0){
 
 		//wake up condition: (first in the queue AND pending messages) OR flushing
-		timeout= wait_event_interruptible_timeout(the_object->readers_queue, ( (list_element.prev==&the_object->readers_list && atomic_read(&the_object->pending_messages)) || the_object->flushing==YES), timeout);
+		timeout= wait_event_interruptible_timeout(the_object->readers_queue, 
+			( (list_element.prev==&the_object->readers_list && atomic_read(&the_object->pending_messages)) || the_object->flushing==YES), timeout);
 		
 		if (timeout==-ERESTARTSYS) {
-    	   	printk(KERN_DEBUG "reader process killed\n");
-	       	err=-ERESTARTSYS;
-       		goto error_handling;
-    	}
+			printk(KERN_DEBUG "reader process killed\n");
+			err=-ERESTARTSYS;
+			goto error_handling;
+		}
 
-    	if (timeout==0){
+		if (timeout==0){
 			printk(KERN_DEBUG "read timeout expired\n");
 			err=-ENODATA;
-       		goto error_handling;
+			goto error_handling;
 		}
 
 	}
@@ -209,7 +210,7 @@ static ssize_t dev_read_ordered (struct file *filp, char *buf, size_t count, lof
 	if (dequeue(&the_object->message_queue, &mess)){
 		printk(KERN_DEBUG "no data...\n");
 		err=-ENODATA;
-       	goto error_handling;
+		goto error_handling;
 	}
 
 	atomic_sub(mess.size, &the_object->used_bytes);
@@ -230,10 +231,10 @@ static ssize_t dev_read_ordered (struct file *filp, char *buf, size_t count, lof
 	if (!atomic_read(&the_object->pending_messages))
 		wake_up_interruptible(&the_object->readers_queue);
 
-    return read_size;
+	return read_size;
 
 
-    error_handling:
+	error_handling:
 
 	spin_lock(&the_object->readers_list_synchronizer);
 	list_del(&list_element);
@@ -242,44 +243,44 @@ static ssize_t dev_read_ordered (struct file *filp, char *buf, size_t count, lof
 	if (!atomic_read(&the_object->pending_messages))
 		wake_up_interruptible(&the_object->readers_queue);
 
-    return err;
+	return err;
 }
 
 
 ssize_t direct_write(const char *buf, size_t count, int minor){
 
-		char *message_content;
-		message *mess;
-		unsigned long ret;
-		object_state *the_object = objects + minor;
+	char *message_content;
+	message *mess;
+	unsigned long ret;
+	object_state *the_object = objects + minor;
 
-		if (atomic_add_return(count, &the_object->used_bytes) > max_storage_size[minor]){
-			atomic_sub(count,  &the_object->used_bytes);
-			printk(KERN_DEBUG "device full\n");
-			return -ENOSPC;
-		}
+	if (atomic_add_return(count, &the_object->used_bytes) > max_storage_size[minor]){
+		atomic_sub(count,  &the_object->used_bytes);
+		printk(KERN_DEBUG "device full\n");
+		return -ENOSPC;
+	}
 
-		mess= kmalloc(sizeof(message), GFP_KERNEL);
-		if (!mess){
-   			return -ENOMEM;
-   		}
-   		message_content= kmalloc(count, GFP_KERNEL);
-   		if (!message_content){
-   			return -ENOMEM;
-   		}
-   		if ((ret=copy_from_user(message_content, buf, count))) {
-    		printk(KERN_ERR "error in copy_from_user, ret=%li for %li bytes\n", ret, count);
-        	return -EFAULT;
-    	}
-    	mess->content= message_content;
-    	mess->size= count;
+	mess= kmalloc(sizeof(message), GFP_KERNEL);
+	if (!mess){
+		return -ENOMEM;
+	}
+	message_content= kmalloc(count, GFP_KERNEL);
+	if (!message_content){
+		return -ENOMEM;
+	}
+	if ((ret=copy_from_user(message_content, buf, count))) {
+		printk(KERN_ERR "error in copy_from_user, ret=%li for %li bytes\n", ret, count);
+		return -EFAULT;
+	}
+	mess->content= message_content;
+	mess->size= count;
 
-    	enqueue(&the_object->message_queue, mess);
-    	atomic_inc(&the_object->pending_messages);
+	enqueue(&the_object->message_queue, mess);
+	atomic_inc(&the_object->pending_messages);
 
-    	wake_up_interruptible(&the_object->readers_queue);
+	wake_up_interruptible(&the_object->readers_queue);
 
-    	return count-ret;
+	return count-ret;
 }
 
 void my_work_handler(struct work_struct *work){
@@ -299,7 +300,7 @@ void my_work_handler(struct work_struct *work){
 	printk(KERN_DEBUG "handling write...\n");
 
 	spin_lock(&sess->delayed_message_synchronizer);
-   	list_del(&delayed->list);
+	list_del(&delayed->list);
 	spin_unlock(&sess->delayed_message_synchronizer);
 
 	if (atomic_add_return(delayed->mess->size, &the_object->used_bytes) > max_storage_size[minor]){
@@ -308,12 +309,12 @@ void my_work_handler(struct work_struct *work){
 		return;
 	}
 
-    enqueue(&the_object->message_queue, delayed->mess);
-    atomic_inc(&the_object->pending_messages);
+	enqueue(&the_object->message_queue, delayed->mess);
+	atomic_inc(&the_object->pending_messages);
 
-    wake_up_interruptible(&the_object->readers_queue);
+	wake_up_interruptible(&the_object->readers_queue);
     
-    kfree(delayed);
+	kfree(delayed);
 }
 
 void delayed_write(const char *buf, size_t count, object_state *the_object, session_data *sess){
@@ -341,21 +342,21 @@ void delayed_write(const char *buf, size_t count, object_state *the_object, sess
 	delayed->mess->size= count;
 	delayed->mess->content= content;
 	if ((ret=copy_from_user(mess->content, buf, count))) {
-    	printk(KERN_ERR "error in copy_from_user, ret=%li for %li bytes\n", ret, count);
-    	kfree(mess);
-    	kfree(delayed);
-    	kfree(content);
-        return;
-    }
-    delayed->sess= sess;
+		printk(KERN_ERR "error in copy_from_user, ret=%li for %li bytes\n", ret, count);
+		kfree(mess);
+		kfree(delayed);
+		kfree(content);
+		return;
+	}
+	delayed->sess= sess;
 
-    spin_lock(&sess->delayed_message_synchronizer);
-    list_add_tail(&delayed->list, &sess->delayed_mess);
-    spin_unlock(&sess->delayed_message_synchronizer);
+	spin_lock(&sess->delayed_message_synchronizer);
+	list_add_tail(&delayed->list, &sess->delayed_mess);
+	spin_unlock(&sess->delayed_message_synchronizer);
 
-    printk(KERN_DEBUG "delaying %s\n", list_last_entry(&sess->delayed_mess, delayed_message, list)->mess->content);
+	printk(KERN_DEBUG "delaying %s\n", list_last_entry(&sess->delayed_mess, delayed_message, list)->mess->content);
 
-    INIT_DELAYED_WORK(&delayed->work, my_work_handler);
+	INIT_DELAYED_WORK(&delayed->work, my_work_handler);
 	schedule_delayed_work(&delayed->work, sess->send_delay);
 }
 
@@ -364,7 +365,7 @@ static ssize_t dev_write(struct file *filp, const char *buf, size_t count, loff_
 	session_data *sess= (session_data *) filp->private_data;
 	unsigned long delay= sess->send_delay;
 	int minor = get_minor(filp);
- 	object_state *the_object = objects + minor;
+	object_state *the_object = objects + minor;
 
 	if (count > max_message_size[minor] || count<=0){
 		return -EMSGSIZE;
@@ -385,15 +386,15 @@ void revoke_delayed_messages(session_data *sess){
 	printk(KERN_DEBUG "revoke_delayed_messages called\n");
 
 	spin_lock(&sess->delayed_message_synchronizer);
-   	list_for_each_entry_safe(d_mess, temp, &(sess->delayed_mess), list) {
-   		if (cancel_delayed_work_sync(&d_mess->work)){
-   			list_del(&d_mess->list);
-   			kfree(d_mess->mess->content);
-   			kfree(d_mess->mess);
-   			kfree(d_mess);
-   		}
-   	}
-   	spin_unlock(&sess->delayed_message_synchronizer);
+	list_for_each_entry_safe(d_mess, temp, &(sess->delayed_mess), list) {
+		if (cancel_delayed_work_sync(&d_mess->work)){
+			list_del(&d_mess->list);
+			kfree(d_mess->mess->content);
+			kfree(d_mess->mess);
+			kfree(d_mess);
+		}
+	}
+	spin_unlock(&sess->delayed_message_synchronizer);
 }
 
 static long dev_ioctl(struct file *filp, unsigned int command, unsigned long param) {
@@ -417,14 +418,13 @@ static long dev_ioctl(struct file *filp, unsigned int command, unsigned long par
 	}
 
 	return 0;
-
 }
 
 static int dev_flush(struct file *filp, fl_owner_t id){
 
 	session_data *sess;
- 	object_state *the_object;
- 	int minor = get_minor(filp);
+	object_state *the_object;
+	int minor = get_minor(filp);
 	the_object = objects + minor;
 
 	printk(KERN_DEBUG "flush called on device %d\n", minor);
@@ -444,13 +444,13 @@ static int dev_flush(struct file *filp, fl_owner_t id){
 }
 
 static struct file_operations fops = {
-  .owner = THIS_MODULE,
-  .write = dev_write,
-  .read = dev_read_ordered,
-  .open =  dev_open,
-  .release = dev_release,
-  .unlocked_ioctl = dev_ioctl,
-  .flush = dev_flush
+	.owner = THIS_MODULE,
+	.write = dev_write,
+	.read = dev_read_ordered,
+	.open =  dev_open,
+	.release = dev_release,
+	.unlocked_ioctl = dev_ioctl,
+	.flush = dev_flush
 };
 
 

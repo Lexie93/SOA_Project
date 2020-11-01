@@ -66,23 +66,23 @@ int init_sys(void){
 		max_message_attribute[i].store=store_value;
 
 		error = sysfs_create_file(device_kobject[i], &max_message_attribute[i].attr);
-    	if (error) {
-    		printk(KERN_ERR "failed to create max_message_size file in /sys/kernel/%s/%d\n", MODNAME, i);
-    		goto put_kbjects;
-    	}
+		if (error) {
+			printk(KERN_ERR "failed to create max_message_size file in /sys/kernel/%s/%d\n", MODNAME, i);
+			goto put_kbjects;
+		}
 
-    	max_storage_size[i]=4096;
+		max_storage_size[i]=4096;
 
-    	max_storage_attribute[i].attr.name="max_storage_size";
+		max_storage_attribute[i].attr.name="max_storage_size";
 		max_storage_attribute[i].attr.mode=0660;
 		max_storage_attribute[i].show=show_value;
 		max_storage_attribute[i].store=store_value;
 
-    	error = sysfs_create_file(device_kobject[i], &max_storage_attribute[i].attr);
-    	if (error) {
-    		printk(KERN_ERR "failed to create max_storage_size file in /sys/kernel/%s/%d\n", MODNAME, i);
-    		goto put_kbjects;
-    	}
+		error = sysfs_create_file(device_kobject[i], &max_storage_attribute[i].attr);
+		if (error) {
+			printk(KERN_ERR "failed to create max_storage_size file in /sys/kernel/%s/%d\n", MODNAME, i);
+			goto put_kbjects;
+		}
 	}
 
 	return 0;

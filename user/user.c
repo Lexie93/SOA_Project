@@ -48,8 +48,8 @@ void * thread_reader(void* filed){
 			printf("reading: %s\n", num);
 			sleep(1);
 		}
-			printf("no data...\n");
-			ioctl(fd, SET_RECV_TIMEOUT, 1000);
+		printf("no data...\n");
+		ioctl(fd, SET_RECV_TIMEOUT, 1000);
 
 		sleep(5);
 	}
@@ -73,26 +73,26 @@ void * thread_revoke(void *filed){
 
 int main(int argc, char** argv){
 
-    int major;
-    int minors;
-    int fd=0;
-    char *path;
-    int i,j;
-    pthread_t tid_write[WRITES], tid_read[READS], tid_revoke[REVOKES];
+	int major;
+	int minors;
+	int fd=0;
+	char *path;
+	int i,j;
+	pthread_t tid_write[WRITES], tid_read[READS], tid_revoke[REVOKES];
 
-    char buff[4096];
+	char buff[4096];
 
-    if(argc<4){
+	if(argc<4){
 		printf("usage: <prog> <pathname> <major> <minors>\n");
 		return -1;
-    }
+	}
 
-    path = argv[1];
-    major = strtol(argv[2],NULL,10);
-    minors = strtol(argv[3],NULL,10);
-    printf("creating %d minors for device %s with major %d\n",minors,path,major);
+	path = argv[1];
+	major = strtol(argv[2],NULL,10);
+	minors = strtol(argv[3],NULL,10);
+	printf("creating %d minors for device %s with major %d\n",minors,path,major);
 
-    for(i=0;i<minors;i++){
+	for(i=0;i<minors;i++){
 
 		sprintf(buff,"mknod %s%d c %d %i\n",path,i,major,i);
 		system(buff);
@@ -112,9 +112,9 @@ int main(int argc, char** argv){
 		for(j=0;j<REVOKES;j++)
 			pthread_create(&(tid_revoke[j]),NULL,thread_revoke, (void *) &fd);
 
-    }
+	}
 
-    pause();
-    return 0;
+	pause();
+	return 0;
 
 }
