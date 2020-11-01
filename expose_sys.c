@@ -18,7 +18,7 @@ static ssize_t show_value(struct kobject *kobj, struct kobj_attribute *attribute
 
 	kstrtol(kobj->name, 10, &minor);
     
-    if (strcmp(attribute->attr.name, "max_message_size")==0)
+	if (strcmp(attribute->attr.name, "max_message_size")==0)
 		return sprintf(buf, "%d\n", max_message_size[minor]);
 	else
 		return sprintf(buf, "%d\n", max_storage_size[minor]);
